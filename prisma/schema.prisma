@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleUser {
+  admin
+  kasir
+}
+
+model Menu {
+  id              Int               @id @default(autoincrement())
+  nama_menu       String            @map("nama_menu") @db.VarChar(100)
+  harga           Int
+  transaksiDetail TransaksiDetail[]
+
+  @@map("tb_menu")
+}
+
+model Siswa {
+  nisn  Int     @id
+  nama  String  @unique @db.VarChar(60)
+  users User[]
+  saldo Saldo[]
+
+  @@map("tb_siswa")
+}
+
+model User {
+  rfid_id        Int       @id
+  username       String    @db.VarChar(50)
+  password       String    @db.VarChar(255)
+  role           RoleUser
+  tanggal_dibuat DateTime  @default(now()) @map("tanggal_dibuat")
+  siswa          Siswa     @relation(fields: [username], references: [nama], onDelete: Cascade)
+  saldo          Saldo[]
+  transaksi      Transaksi[]
+
+  @@index([username], map: "nama")
+  @@map("tb_user")
+}
+
+model Saldo {
+  rfid_id Int
+  nisn    Int
+  saldo   Decimal @db.Decimal(15, 2)
+  user    User    @relation(fields: [rfid_id], references: [rfid_id], onDelete: Cascade)
+  siswa   Siswa   @relation(fields: [nisn], references: [nisn], onDelete: Cascade)
+
+  @@id([rfid_id, nisn])
+  @@index([rfid_id, nisn], map: "rfid_id")
+  @@index([nisn], map: "nisn")
+  @@map("tb_saldo")
+}
+
+// Tabel pendukung transaksi kasir sesuai PRD
+model Transaksi {
+  id          Int               @id @default(autoincrement())
+  rfid_id     Int
+  total_harga Int               @map("total_harga")
+  tanggal     DateTime          @default(now())
+  status      String            @default("SUCCESS") @db.VarChar(20)
+  user        User              @relation(fields: [rfid_id], references: [rfid_id])
+  items       TransaksiDetail[]
+
+  @@map("tb_transaksi")
+}
+
+model TransaksiDetail {
+  id           Int       @id @default(autoincrement())
+  transaksi_id Int
+  menu_id      Int
+  jumlah       Int
+  harga_satuan Int       @map("harga_satuan")
+  subtotal     Int
+  transaksi    Transaksi @relation(fields: [transaksi_id], references: [id], onDelete: Cascade)
+  menu         Menu      @relation(fields: [menu_id], references: [id])
+
+  @@map("tb_transaksi_detail")
+}
+
+model Topup {
+  id         Int      @id @default(autoincrement())
+  rfid_id    Int
+  nominal    Decimal  @db.Decimal(15, 2)
+  tanggal    DateTime @default(now())
+  keterangan String?  @db.VarChar(255)
+
+  @@map("tb_topup")
+}
